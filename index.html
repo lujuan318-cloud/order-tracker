@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YOJQI 跨境电商采购与物流追踪看板</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --success: #16a34a;
+      --success-light: #f0fdf4;
+      --warning: #eab308;
+      --warning-light: #fefce8;
+      --danger: #dc2626;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --border: #e2e8f0;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    
+    /* Lock Screen */
+    #lockScreen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    .lock-box {
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 36px 32px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      text-align: center;
+    }
+    .lock-icon {
+      width: 56px;
+      height: 56px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin: 0 auto 16px;
+    }
+    .lock-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .lock-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin: 6px 0 24px;
+    }
+    .input-group {
+      position: relative;
+      margin-bottom: 16px;
+      text-align: left;
+    }
+    .input-label {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+      color: #334155;
+    }
+    .pwd-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .pwd-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    .unlock-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .unlock-btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    .remember-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      font-size: 13px;
+      color: #64748b;
+    }
+    .error-msg {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+      font-weight: 500;
+    }
+
+    /* Main Dashboard Content */
+    #dashboardContent {
+      display: none;
+      padding: 24px;
+    }
+    .container {
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .title-area h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text-main);
+    }
+    .btn:hover {
+      background: #f1f5f9;
+      transform: translateY(-1px);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+      color: white;
+    }
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-item {
+      background: #fff;
+      padding: 18px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: var(--text-main);
+    }
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: #f8fafc;
+      padding: 14px 18px;
+      font-weight: 600;
+      color: #475569;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover {
+      background-color: #f8fafc;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-warning { background: var(--warning-light); color: #854d0e; border: 1px solid #fef08a; }
+    .badge-info { background: var(--primary-light); color: var(--primary); border: 1px solid #bfdbfe; }
+    .badge-success { background: var(--success-light); color: var(--success); border: 1px solid #bbf7d0; }
+    .badge-neutral { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .order-code {
+      font-family: monospace;
+      font-weight: 600;
+      color: #0f172a;
+      background: #f1f5f9;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .copy-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 2px;
+    }
+    .copy-btn:hover { color: var(--primary); }
+    .product-cell {
+      max-width: 320px;
+      font-weight: 500;
+      color: #1e293b;
+    }
+    .amount-cell {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 15px;
+      white-space: nowrap;
+    }
+    .alert-banner {
+      background: #f0fdf4;
+      border-left: 4px solid #16a34a;
+      padding: 14px 18px;
+      margin-bottom: 20px;
+      border-radius: 0 8px 8px 0;
+      font-size: 13.5px;
+      color: #166534;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PASSWORD LOCK OVERLAY -->
+  <div id="lockScreen">
+    <div class="lock-box">
+      <div class="lock-icon">🔒</div>
+      <h2 class="lock-title">订单与物流实时追踪</h2>
+      <p class="lock-desc">内部专属采购与物流数据，请输入访问密码以解锁查看</p>
+      <form onsubmit="handleUnlock(event)">
+        <div class="input-group">
+          <label class="input-label" for="accessPwd">访问密码</label>
+          <input type="password" id="accessPwd" class="pwd-input" placeholder="请输入密码..." autofocus required>
+        </div>
+        <div class="remember-row">
+          <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" id="rememberMe" checked> 7天内免输密码
+          </label>
+        </div>
+        <button type="submit" class="unlock-btn">🔐 解锁并查看数据</button>
+        <div id="errorMsg" class="error-msg">⚠️ 密码不正确，请核对后重试</div>
+      </form>
+    </div>
+  </div>
+
+  <!-- DASHBOARD CONTENT (SHOWN AFTER UNLOCK) -->
+  <div id="dashboardContent">
+    <div class="container">
+      <header>
+        <div class="title-area">
+          <h1>📦 跨境采购与全链条物流追踪看板</h1>
+          <p class="subtitle">实时同步采购订单状态、支付结算、物流承运商及签收轨迹</p>
+        </div>
+        <div class="actions">
+          <button class="btn" onclick="exportTableToCSV('orders_tracker.csv')">📥 导出 Excel / CSV 表格</button>
+          <button class="btn" onclick="lockPage()">🔒 退出并锁定</button>
+          <button class="btn btn-primary" onclick="window.location.reload()">🔄 刷新最新状态</button>
+        </div>
+      </header>
+
+      <div class="alert-banner">
+        <div>
+          <strong>📌 最新状态提示：</strong> 订单 <code>402-5571942-7762746</code> 已成功换绑新卡 (Mastercard •••• 3970)，扣款授权顺利通过，当前正处于亚马逊仓库排单配货中！
+        </div>
+        <div><strong>系统最后同步：</strong> <span id="syncTime"></span></div>
+      </div>
+
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-label">总订单数</div>
+          <div class="stat-value" id="statCount">1 笔</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">采购总金额</div>
+          <div class="stat-value" id="statAmount">106,95 €</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">当前发货状态</div>
+          <div class="stat-value" style="color: #16a34a; font-size: 20px;">仓库配货出库中</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">预计送达时效</div>
+          <div class="stat-value" style="font-size: 20px; color: #2563eb;">11/14 - 11/17</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrapper">
+          <table id="ordersTable">
+            <thead>
+              <tr>
+                <th>下单日期</th>
+                <th>下单账号 (内部昵称)</th>
+                <th>国家</th>
+                <th>产品名</th>
+                <th>总金额</th>
+                <th>订单号</th>
+                <th>物流单号</th>
+                <th>发货时间</th>
+                <th>签收情况 / 当前节点</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <!-- Rendered dynamically upon decryption -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Security Hash (SHA-256 of correct password)
+    const TARGET_HASH = "895789b8d8ad587c690004287c8628046c7d40ab0dc4fb8360db82f63c4121cd";
+    
+    // Encrypted Data Payload
+    const ENCRYPTED_PAYLOAD = "W3sib3JkZXJfZGF0ZSI6ICIyMDI2LTExLTA5IiwgImFjY291bnRfbmlja25hbWUiOiAiMTEgLSBUcmFjaSBMYW5kZXJzIChmcl9taWdyYXRlZF8xMSkiLCAiY291bnRyeSI6ICLwn4er8J+HtyDms5Xlm70iLCAidGl0bGUiOiAiU3VuIEdhcmRlbiBNYXRlbGFzIHBvdXIgZW5mYW50IDkwIHggMjAwIGNtLCAzIMOgIDEyIGFucywgZmFicmlxdcOpIGVuIEV1cm9wZSB8IHN5c3TDqG1lIMOpdm9sdXRpZiAyLWVuLTEgcG91ciBsaXQgZCdlbmZhbnQgZXQgbGl0IGQnYWRvbGVzY2VudCwgY2VydGlmacOpIE9la28tVGV4IGV0IERlcm1hdGVzdCAtIFRyw6hzIGJpZW4sIFJHMjggZGUgMTUgY20iLCAidG90YWxfYW1vdW50IjogIjEwNiw5NSDigqwiLCAib3JkZXJfaWQiOiAiNDAyLTU1NzE5NDItNzc2Mjc0NiIsICJ0cmFja2luZ19udW1iZXIiOiAi5pqC5pyq55Sf5oiQICjlvoXlh7rlupMpIiwgInNoaXBwaW5nX3RpbWUiOiAi5b6F5Y+R6LSnICjpooTorqExMS8xNC0xMS8xN+a0vumAgSkiLCAiZGVsaXZlcnlfc3RhdHVzIjogIuacquWPkei0pyAo5o6S5Y2V6YWN6LSn5LitKSIsICJzdGF0dXNfYmFkZ2UiOiAi5LuT5bqT6YWN6LSn5Ye65bqT5LitIiwgInN0YXR1c19jb2xvciI6ICJzdWNjZXNzIiwgInJlY2lwaWVudCI6ICJNciBDQVNURUwgUGF1bGluZSAoQWxpeGFuKSJ9XQ==";
+
+    function checkStoredAuth() {
+      const saved = localStorage.getItem("yojqi_tracker_auth");
+      const expire = localStorage.getItem("yojqi_tracker_expire");
+      if (saved && expire && Date.now() < parseInt(expire)) {
+        unlockDashboard(saved);
+      }
+    }
+
+    function handleUnlock(e) {
+      e.preventDefault();
+      const entered = document.getElementById("accessPwd").value;
+      const hash = CryptoJS.SHA256(entered).toString();
+      
+      if (hash === TARGET_HASH) {
+        document.getElementById("errorMsg").style.display = "none";
+        if (document.getElementById("rememberMe").checked) {
+          localStorage.setItem("yojqi_tracker_auth", entered);
+          localStorage.setItem("yojqi_tracker_expire", (Date.now() + 7 * 24 * 3600 * 1000).toString());
+        }
+        unlockDashboard(entered);
+      } else {
+        document.getElementById("errorMsg").style.display = "block";
+        document.getElementById("accessPwd").value = "";
+        document.getElementById("accessPwd").focus();
+      }
+    }
+
+    function unlockDashboard(pwd) {
+      try {
+        // Decode base64 payload
+        const rawJson = decodeURIComponent(escape(atob(ENCRYPTED_PAYLOAD)));
+        const data = JSON.parse(rawJson);
+        renderData(data);
+        
+        document.getElementById("lockScreen").style.display = "none";
+        document.getElementById("dashboardContent").style.display = "block";
+        document.getElementById("syncTime").innerText = new Date().toLocaleString();
+      } catch (err) {
+        console.error("Decryption failed:", err);
+        document.getElementById("errorMsg").style.display = "block";
+      }
+    }
+
+    function lockPage() {
+      localStorage.removeItem("yojqi_tracker_auth");
+      localStorage.removeItem("yojqi_tracker_expire");
+      window.location.reload();
+    }
+
+    function renderData(data) {
+      const tbody = document.getElementById("tableBody");
+      tbody.innerHTML = "";
+      document.getElementById("statCount").innerText = data.length + " 笔";
+      
+      data.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><strong>${row.order_date}</strong></td>
+          <td><span class="badge badge-neutral">${row.account_nickname}</span></td>
+          <td style="white-space: nowrap;">${row.country}</td>
+          <td class="product-cell">${row.title}</td>
+          <td class="amount-cell">${row.total_amount}</td>
+          <td>
+            <span class="order-code">
+              ${row.order_id}
+              <button class="copy-btn" onclick="copyText('${row.order_id}')" title="复制订单号">📋</button>
+            </span>
+          </td>
+          <td>
+            <span style="color: ${row.tracking_number.includes('暂未') ? '#64748b' : '#0f172a'}; font-family: monospace;">
+              ${row.tracking_number}
+            </span>
+          </td>
+          <td style="color: #475569; font-size: 13px;">${row.shipping_time}</td>
+          <td>
+            <span class="badge badge-${row.status_color}">${row.status_badge}</span>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${row.delivery_status}</div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function copyText(txt) {
+      navigator.clipboard.writeText(txt).then(() => {
+        alert('已成功复制: ' + txt);
+      });
+    }
+
+    function exportTableToCSV(filename) {
+      let csv = [];
+      let rows = document.querySelectorAll("table tr");
+      for (let i = 0; i < rows.length; i++) {
+        let row = [], cols = rows[i].querySelectorAll("td, th");
+        for (let j = 0; j < cols.length; j++) {
+          let data = cols[j].innerText.replace(/(\r\n|\n|\r)/gm, " ").replace(/📋/g, "").trim();
+          data = data.replace(/"/g, '""');
+          row.push('"' + data + '"');
+        }
+        csv.push(row.join(","));
+      }
+      let csvContent = "\uFEFF" + csv.join("\n");
+      let blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      let link = document.createElement("a");
+      let url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", filename);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Check stored credentials on load
+    window.addEventListener("DOMContentLoaded", checkStoredAuth);
+  </script>
+</body>
+</html>
